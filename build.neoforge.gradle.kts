@@ -12,14 +12,6 @@ platform {
 		required("neoforge") {
 			forgeVersionRange = "[1,)"
 		}
-		required("fzzy_config") {
-			slug("fzzy-config")
-			forgeVersionRange = "[0,)"
-		}
-		required("mixson") {
-			slug("mixson")
-			forgeVersionRange = "[0,)"
-		}
 	}
 }
 
@@ -51,17 +43,13 @@ neoForge {
 
 repositories {
 	mavenCentral()
-	strictMaven("https://maven.fzzyhmstrs.me/", "me.fzzyhmstrs") { name = "Fzzy Config" }
-	strictMaven("https://thedarkcolour.github.io/KotlinForForge/") { name = "KotlinForForge" }
-	strictMaven("https://jitpack.io") { name = "Jitpack" }
 	strictMaven("https://api.modrinth.com/maven", "maven.modrinth") { name = "Modrinth" }
+	strictMaven("https://maven.caffeinemc.net/releases") { name = "CaffeineMC" }
 }
 
 dependencies {
-	implementation(libs.moulberry.mixinconstraints)
-	jarJar(libs.moulberry.mixinconstraints)
-	implementation("me.fzzyhmstrs:fzzy_config:${prop("deps.fzzy_config")}+neoforge")
-	implementation("maven.modrinth:mixson:${prop("deps.mixson")}")
+	compileOnlyApi("net.caffeinemc:sodium-neoforge-api:${prop("deps.sodium")}")
+	runtimeOnly("net.caffeinemc:sodium-neoforge:${prop("deps.sodium")}")
 }
 
 tasks.named("createMinecraftArtifacts") {

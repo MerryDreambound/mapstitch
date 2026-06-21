@@ -1,0 +1,351 @@
+package me.pajic.mapstitch.item;
+
+import me.pajic.mapstitch.MapStitch;
+import me.pajic.mapstitch.component.ModDataComponents;
+import me.pajic.mapstitch.extension.BundleContentsExtension;
+import me.pajic.mapstitch.extension.BundleContentsMutableExtension;
+import me.pajic.mapstitch.mixin.BundleItemAccessor;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.stats.Stats;
+import net.minecraft.util.Mth;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.SlotAccess;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.inventory.ClickAction;
+import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.BundleItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
+import net.minecraft.world.item.ItemUseAnimation;
+import net.minecraft.world.item.ItemUtils;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.MapItem;
+import net.minecraft.world.item.component.BundleContents;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.saveddata.maps.MapId;
+import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
+import net.minecraft.world.phys.Vec2;
+import org.apache.commons.lang3.math.Fraction;
+import org.jetbrains.annotations.NotNull;
+import org.jspecify.annotations.Nullable;
+
+import java.util.Optional;
+import java.util.concurrent.Semaphore;
+
+public class AtlasItem extends Item {
+
+	public static final Fraction SIZE = Fraction.getFraction(16, 1);
+	private static final Semaphore mutex = new Semaphore(1);
+
+	public AtlasItem() {
+		BundleContents contents = BundleContents.EMPTY;
+		((BundleContentsExtension) (Object) contents).mapstitch$setIsAtlas();
+		super(new Item.Properties()
+				.component(DataComponents.BUNDLE_CONTENTS, contents)
+				.component(ModDataComponents.ATLAS_FULLNESS, 0)
+				.component(ModDataComponents.ATLAS_ACTIVE_MAP_ID, -1)
+				.stacksTo(1)
+				.setId(ModItems.ATLAS_KEY));
+	}
+
+	@Override
+	public boolean overrideStackedOnOther(
+			final ItemStack self,
+			@NotNull final Slot slot,
+			@NotNull final ClickAction clickAction,
+			@NotNull final Player player
+	) {
+		BundleContents initialContents = self.get(DataComponents.BUNDLE_CONTENTS);
+		if (initialContents != null) {
+			ItemStack other = slot.getItem();
+			BundleContents.Mutable contents = new BundleContents.Mutable(initialContents);
+			if (clickAction == ClickAction.PRIMARY && !other.isEmpty() && isValidItemForAtlas(other, self, player.level())) {
+				if (contents.tryTransfer(slot, player) > 0) {
+					BundleItemAccessor.mapstitch$callPlayInsertSound(player);
+				} else {
+					BundleItemAccessor.mapstitch$callPlayInsertFailSound(player);
+				}
+				updateAtlas(contents, self);
+				broadcastChangesOnContainerMenu(player);
+				return true;
+			} else if (clickAction == ClickAction.SECONDARY && other.isEmpty()) {
+				ItemStack itemStack = contents.removeOne();
+				if (itemStack != null) {
+					ItemStack remainder = slot.safeInsert(itemStack);
+					if (remainder.getCount() > 0 && isValidItemForAtlas(remainder, self, player.level())) {
+						contents.tryInsert(remainder);
+					} else {
+						BundleItemAccessor.mapstitch$callPlayRemoveOneSound(player);
+					}
+				}
+				updateAtlas(contents, self);
+				broadcastChangesOnContainerMenu(player);
+				return true;
+			} else {
+				return false;
+			}
+		}
+		return false;
+	}
+
+	@Override
+	public boolean overrideOtherStackedOnMe(
+			final @NotNull ItemStack self,
+			final @NotNull ItemStack other,
+			final @NotNull Slot slot,
+			final @NotNull ClickAction clickAction,
+			final @NotNull Player player,
+			final @NotNull SlotAccess carriedItem
+	) {
+		if (clickAction == ClickAction.PRIMARY && other.isEmpty()) {
+			BundleItem.toggleSelectedItem(self, -1);
+		} else {
+			BundleContents initialContents = self.get(DataComponents.BUNDLE_CONTENTS);
+			if (initialContents != null) {
+				BundleContents.Mutable contents = new BundleContents.Mutable(initialContents);
+				if (clickAction == ClickAction.PRIMARY && !other.isEmpty() && isValidItemForAtlas(other, self, player.level())) {
+					if (slot.allowModification(player) && contents.tryInsert(other) > 0) {
+						BundleItemAccessor.mapstitch$callPlayInsertSound(player);
+					} else {
+						BundleItemAccessor.mapstitch$callPlayInsertFailSound(player);
+					}
+					updateAtlas(contents, self);
+					broadcastChangesOnContainerMenu(player);
+					return true;
+				} else if (clickAction == ClickAction.SECONDARY && other.isEmpty()) {
+					if (slot.allowModification(player)) {
+						ItemStack removed = contents.removeOne();
+						if (removed != null) {
+							BundleItemAccessor.mapstitch$callPlayRemoveOneSound(player);
+							carriedItem.set(removed);
+						}
+					}
+					updateAtlas(contents, self);
+					broadcastChangesOnContainerMenu(player);
+					return true;
+				} else {
+					BundleItem.toggleSelectedItem(self, -1);
+					return false;
+				}
+			}
+		}
+		return false;
+	}
+
+	@Override @NotNull
+	public InteractionResult use(final @NotNull Level level, final Player player, final @NotNull InteractionHand hand) {
+		player.startUsingItem(hand);
+		return InteractionResult.SUCCESS;
+	}
+
+	@Override
+	public boolean isBarVisible(final ItemStack stack) {
+		return !stack.getOrDefault(DataComponents.BUNDLE_CONTENTS, BundleContents.EMPTY).items().isEmpty();
+	}
+
+	@Override
+	public int getBarWidth(final ItemStack stack) {
+		BundleContents contents = stack.getOrDefault(DataComponents.BUNDLE_CONTENTS, BundleContents.EMPTY);
+		return Mth.clamp(getAtlasItemCount(contents) / 1024, 1, 13);
+	}
+
+	@Override
+	public int getBarColor(final ItemStack stack) {
+		BundleContents contents = stack.getOrDefault(DataComponents.BUNDLE_CONTENTS, BundleContents.EMPTY);
+		return getAtlasItemCount(contents) == 1024 ?
+				BundleItemAccessor.mapstitch$getFullBarColor() : BundleItemAccessor.mapstitch$getBarColor();
+	}
+
+	@Override
+	public void onUseTick(
+			final @NotNull Level level,
+			final @NotNull LivingEntity livingEntity,
+			final @NotNull ItemStack itemStack,
+			final int ticksRemaining
+	) {
+		if (livingEntity instanceof Player player) {
+			int useDuration = this.getUseDuration(itemStack, livingEntity);
+			boolean isFirstTick = ticksRemaining == useDuration;
+			if (isFirstTick || ticksRemaining < useDuration - 10 && ticksRemaining % 2 == 0) {
+				this.dropContent(level, player, itemStack);
+			}
+		}
+	}
+
+	@Override
+	public void inventoryTick(
+			@NotNull ItemStack atlas,
+			@NotNull ServerLevel level,
+			@NotNull Entity owner,
+			@Nullable EquipmentSlot slot
+	) {
+		BundleContents contents = atlas.get(DataComponents.BUNDLE_CONTENTS);
+		int activeMapIndex = atlas.getOrDefault(ModDataComponents.ATLAS_ACTIVE_MAP_ID, -1);
+		if (contents != null && !contents.isEmpty()) {
+			for (ItemStackTemplate stack : contents.items()) {
+				if (stack.is(Items.FILLED_MAP)) {
+					MapId id = stack.get(DataComponents.MAP_ID);
+					MapItemSavedData data = MapItem.getSavedData(id, level);
+					if (data != null) {
+						if (owner instanceof Player player) data.tickCarriedBy(player, atlas, null);
+						if (!data.locked) {
+							((MapItem) stack.item().value()).update(level, owner, data);
+							if (owner instanceof ServerPlayer serverPlayer) {
+								Packet<?> packet = data.getUpdatePacket(id, serverPlayer);
+								if (packet != null) serverPlayer.connection.send(packet);
+							}
+						}
+					}
+				}
+			}
+			int posX = owner.getBlockX();
+			int posZ = owner.getBlockZ();
+			if (activeMapIndex == -1) {
+				updateActiveMap(atlas, contents, posX, posZ, level, owner);
+			} else {
+				MapId mapId = null;
+				for (ItemStackTemplate stack : contents.items()) {
+					if (stack.is(Items.FILLED_MAP)) {
+						MapId id = stack.get(DataComponents.MAP_ID);
+						if (id != null && id.equals(new MapId(activeMapIndex))) {
+							mapId = id;
+							break;
+						}
+					}
+				}
+				if (mapId != null) {
+					MapItemSavedData mapData = MapItem.getSavedData(mapId, level);
+					if (mapData != null) {
+						int distX = Math.abs(mapData.centerX - posX);
+						int distZ = Math.abs(mapData.centerZ - posZ);
+						int scale = mapData.scale + 1;
+						if (distX > 64 * scale || distZ > 64 * scale) {
+							updateActiveMap(atlas, contents, posX, posZ, level, owner);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	@Override
+	public int getUseDuration(final @NotNull ItemStack itemStack, final @NotNull LivingEntity entity) {
+		return 200;
+	}
+
+	@Override @NotNull
+	public ItemUseAnimation getUseAnimation(final @NotNull ItemStack itemStack) {
+		return ItemUseAnimation.BUNDLE;
+	}
+
+	@Override
+	public void onDestroyed(final ItemEntity entity) {
+		BundleContents contents = entity.getItem().get(DataComponents.BUNDLE_CONTENTS);
+		if (contents != null) {
+			entity.getItem().set(DataComponents.BUNDLE_CONTENTS, BundleContents.EMPTY);
+			ItemUtils.onContainerDestroyed(entity, contents.itemCopyStream());
+		}
+	}
+
+	private void updateActiveMap(ItemStack atlas, BundleContents contents, int posX, int posZ, ServerLevel level, Entity owner) {
+		int emptyMapIndex = -1;
+		boolean hasAnyFilledMaps = false;
+		for (int i = 0; i < contents.size(); i++) {
+			ItemStackTemplate map = contents.items().get(i);
+			if (map.is(Items.FILLED_MAP)) {
+				hasAnyFilledMaps = true;
+				MapId mapId = map.get(DataComponents.MAP_ID);
+				MapItemSavedData mapData = MapItem.getSavedData(mapId, level);
+				if (mapData != null) {
+					int distX = Math.abs(mapData.centerX - posX);
+					int distZ = Math.abs(mapData.centerZ - posZ);
+					int scale = mapData.scale + 1;
+					if (distX < 64 * scale && distZ < 64 * scale) {
+						atlas.set(ModDataComponents.ATLAS_ACTIVE_MAP_ID, mapId.id());
+						return;
+					}
+				}
+			} else if (emptyMapIndex == -1 && map.is(Items.MAP)) emptyMapIndex = i;
+		}
+		atlas.set(ModDataComponents.ATLAS_ACTIVE_MAP_ID, -1);
+		if (mutex.availablePermits() > 0 && emptyMapIndex != -1 && hasAnyFilledMaps) {
+			try {
+				mutex.acquire();
+				ItemStack newMap = MapItem.create(level, posX, posZ, atlas.getOrDefault(ModDataComponents.ATLAS_SCALE, 0).byteValue(), true, false);
+				BundleContents.Mutable mutableContents = new BundleContents.Mutable(contents);
+				//noinspection DataFlowIssue
+				((BundleContentsMutableExtension) mutableContents).mapstitch$removeOneAtIndex(emptyMapIndex);
+				MapItemSavedData mapData = MapItem.getSavedData(newMap.get(DataComponents.MAP_ID), level);
+				newMap.set(ModDataComponents.MAP_ORIGIN, new Vec2(mapData.centerX, mapData.centerZ));
+				newMap.inventoryTick(level, owner, EquipmentSlot.MAINHAND);
+				mutableContents.tryInsert(newMap);
+				atlas.set(DataComponents.BUNDLE_CONTENTS, mutableContents.toImmutable());
+				if (owner instanceof ServerPlayer player) {
+					player.awardStat(Stats.ITEM_USED.get(this));
+					level.playSound(null, player, SoundEvents.UI_CARTOGRAPHY_TABLE_TAKE_RESULT, player.getSoundSource(), 1.0F, 1.0F);
+				}
+			} catch (InterruptedException e) {
+				MapStitch.LOGGER.warn("Map creation interrupted", e);
+			} finally {
+				mutex.release();
+			}
+		}
+	}
+
+	private void updateAtlas(BundleContents.Mutable contents, ItemStack atlas) {
+		BundleContents immutableContents = contents.toImmutable();
+		atlas.set(DataComponents.BUNDLE_CONTENTS, immutableContents);
+		int itemCount = getAtlasItemCount(immutableContents);
+		atlas.set(ModDataComponents.ATLAS_FULLNESS, itemCount == 0 ? 0 : itemCount / 256 + 1);
+	}
+
+	private int getAtlasItemCount(BundleContents contents) {
+		int itemCount = 0;
+		for (ItemStackTemplate item : contents.items()) itemCount += item.count();
+		return itemCount;
+	}
+
+	private void dropContent(final Level level, final Player player, final ItemStack itemStack) {
+		if (this.dropContent(itemStack, player)) {
+			BundleItemAccessor.mapstitch$callPlayDropContentsSound(level, player);
+			player.awardStat(Stats.ITEM_USED.get(this));
+		}
+	}
+
+	private boolean dropContent(final ItemStack bundle, final Player player) {
+		BundleContents contents = bundle.get(DataComponents.BUNDLE_CONTENTS);
+		if (contents != null && !contents.isEmpty()) {
+			Optional<ItemStack> itemStack = BundleItemAccessor.mapstitch$callRemoveOneItemFromBundle(bundle, player, contents);
+			if (itemStack.isPresent()) {
+				player.drop(itemStack.get(), true);
+				return true;
+			}
+			return false;
+		}
+		return false;
+	}
+
+	private boolean isValidItemForAtlas(ItemStack map, ItemStack atlas, Level level) {
+		if (map.is(Items.MAP)) return true;
+		if (map.is(Items.FILLED_MAP)) {
+			MapItemSavedData mapData = MapItem.getSavedData(map, level);
+			int atlasScale = atlas.getOrDefault(ModDataComponents.ATLAS_SCALE, -1);
+			return mapData != null && atlasScale != -1 && mapData.scale == atlasScale;
+		}
+		return false;
+	}
+
+	private void broadcastChangesOnContainerMenu(final Player player) {
+		player.containerMenu.slotsChanged(player.getInventory());
+	}
+}

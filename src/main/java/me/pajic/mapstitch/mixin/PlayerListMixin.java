@@ -1,0 +1,32 @@
+package me.pajic.mapstitch.mixin;
+
+import me.pajic.mapstitch.gamerule.ModGameRules;
+import me.pajic.mapstitch.networking.NetworkingUtil;
+import me.pajic.mapstitch.networking.S2CCompassGameRulePayload;
+import me.pajic.mapstitch.networking.S2CDimensionIdsPayload;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.Connection;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.network.CommonListenerCookie;
+import net.minecraft.server.players.PlayerList;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+@Mixin(PlayerList.class)
+public class PlayerListMixin {
+
+	@Inject(
+			method = "placeNewPlayer",
+			at = @At("RETURN")
+	)
+	private void sendModDataToPlayers(Connection connection, ServerPlayer player, CommonListenerCookie cookie, CallbackInfo ci) {
+		NetworkingUtil.s2c(player, new S2CDimensionIdsPayload(
+				player.registryAccess().lookupOrThrow(Registries.DIMENSION).keySet().stream().toList()
+		));
+		NetworkingUtil.s2c(player, new S2CCompassGameRulePayload(
+				player.level().getGameRules().get(ModGameRules.REQUIRE_COMPASS_FOR_POS)
+		));
+	}
+}

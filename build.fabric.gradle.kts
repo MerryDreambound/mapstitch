@@ -16,15 +16,6 @@ platform {
 		required("fabricloader") {
 			versionRange = ">=${libs.fabric.loader.get().version}"
 		}
-		required("fzzy_config") {
-			slug("fzzy-config")
-			versionRange = "*"
-		}
-		required("mixson") {
-			slug("mixson")
-			versionRange = "*"
-		}
-		optional("modmenu") {}
 	}
 }
 
@@ -49,21 +40,14 @@ loom {
 
 repositories {
 	mavenCentral()
-	strictMaven("https://maven.fzzyhmstrs.me/", "me.fzzyhmstrs") { name = "Fzzy Config" }
-	strictMaven("https://maven.terraformersmc.com/", "com.terraformersmc") { name = "TerraformersMC" }
-	strictMaven("https://jitpack.io") { name = "Jitpack" }
 	strictMaven("https://api.modrinth.com/maven", "maven.modrinth") { name = "Modrinth" }
+	strictMaven("https://maven.caffeinemc.net/releases") { name = "CaffeineMC" }
 }
 
 dependencies {
 	minecraft("com.mojang:minecraft:${prop("deps.minecraft")}")
 	implementation(libs.fabric.loader)
-	implementation(libs.moulberry.mixinconstraints)
-	include(libs.moulberry.mixinconstraints)
 	implementation("net.fabricmc.fabric-api:fabric-api:${prop("deps.fabric-api")}")
-	localRuntime("com.terraformersmc:modmenu:${prop("deps.modmenu")}")
-	implementation("me.fzzyhmstrs:fzzy_config:${prop("deps.fzzy_config")}")
-	implementation("maven.modrinth:mixson:${prop("deps.mixson")}") {
-		exclude(group = "net.fabricmc.fabric-api", module = "fabric-api")
-	}
+	compileOnlyApi("net.caffeinemc:sodium-fabric-api:${prop("deps.sodium")}")
+	runtimeOnly("net.caffeinemc:sodium-fabric:${prop("deps.sodium")}")
 }
