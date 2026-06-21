@@ -1,5 +1,6 @@
 package me.pajic.mapstitch.worldmap;
 
+import com.mojang.authlib.minecraft.client.MinecraftClient;
 import com.mojang.blaze3d.platform.InputConstants;
 import it.unimi.dsi.fastutil.Pair;
 import it.unimi.dsi.fastutil.objects.ObjectBooleanImmutablePair;
@@ -33,10 +34,13 @@ import net.minecraft.world.phys.Vec2;
 import org.apache.commons.lang3.text.WordUtils;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Matrix3x2fStack;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
+import static me.pajic.mapstitch.MapStitch.MOD_ID;
 
 public class WorldMapScreen extends Screen {
 	public static List<Identifier> dimensionIds = List.of();
@@ -99,9 +103,36 @@ public class WorldMapScreen extends Screen {
 			pose.popMatrix();
 		});
 		// render grid
-		if (grid) for (int i = -screenY; i < screenY; i += screenY / (64 * MC.getWindow().getGuiScale())) {
-			graphics.horizontalLine(0, screenX, Math.round((screenY / 2F) + ((float) (i * 128) / (scale + 1)) - ((float) 64 / (scale + 1)) - (((float) posZ / (scale + 1)) % 128) + (float) mouseDragY * z), 0xffffffff);
-			graphics.verticalLine(Math.round((screenX / 2F) + ((float) (i * 128) / (scale + 1)) - ((float) 64 / (scale + 1)) - (((float) posX / (scale + 1)) % 128) + (float) mouseDragX * z), 0, screenY, 0xffffffff);
+		if (grid) {
+			float invertedZoom = 1 / z;
+			int mapSize = Math.round(128 / invertedZoom);
+			int mapOffset = Math.round((float) mapSize / 2);
+			int dragHorizontalOffset = Math.round((float) mouseDragY / invertedZoom);
+			int posZOffset = Math.round(-posZ * z);
+			int dragVerticalOffset = Math.round((float) mouseDragX / invertedZoom);
+			int posXOffset = Math.round(-posX * z);
+			int horizontalLineOffset = Math.round((float)dragHorizontalOffset/mapSize);
+			int verticalLineOffset = Math.round((float)dragVerticalOffset/mapSize);
+			int requiredHorizontalLinesStart = -Math.round((float) screenY /mapSize) + horizontalLineOffset;
+			int requiredHorizontalLinesEnd = Math.round((float) screenY /mapSize) + horizontalLineOffset;
+			int requiredVerticalLinesStart = -Math.round((float) screenX /mapSize) + verticalLineOffset;
+			int requiredVerticalLinesEnd = Math.round((float) screenX /mapSize) + verticalLineOffset;
+			for (int i = requiredHorizontalLinesStart; i <= requiredHorizontalLinesEnd; i++) {
+				graphics.horizontalLine(0, screenX, Math.round((screenY / 2F) - (mapSize) * i + dragHorizontalOffset + posZOffset - mapOffset), 0xffffffff);
+				graphics.text(MC.font, String.valueOf(-(i+1)*(128*s)+(64*s)), 0,Math.round((screenY / 2F) - (mapSize) * i + dragHorizontalOffset + posZOffset - mapOffset) + 5, 0xffffffff);
+
+			}
+			for (int i = requiredVerticalLinesStart; i <= requiredVerticalLinesEnd; i++) {
+				graphics.verticalLine(Math.round((screenX / 2F) - (mapSize) * i + dragVerticalOffset + posXOffset - mapOffset), 0, screenY, 0xffffffff);
+				graphics.text(MC.font, String.valueOf(-(i+1)*(128*s)+(64*s)), Math.round((screenX / 2F) - (mapSize) * i + dragVerticalOffset + posXOffset - mapOffset)+5,0, 0xffffffff);
+
+			}
+//			graphics.text(MC.font,"test", Math.round((screenY / 2F) - (mapSize) * i + dragHorizontalOffset + posZOffset - mapOffset) + 5,Math.round((screenX / 2F) - (mapSize) * i + dragVerticalOffset + posXOffset - mapOffset) + 5, 0xffffffff);
+
+			//			textStack(4, false, graphics, List.of(
+//					new ObjectBooleanImmutablePair<>(Component.literal(), true)
+//			));
+//			LoggerFactory.getLogger(MOD_ID).info("Mapsize: " + String.valueOf(mapSize) + " mapOffset: " + String.valueOf(mapOffset) + " dragHorizontalOffset: " + String.valueOf(dragHorizontalOffset) + " posZOffset: " + String.valueOf(posZOffset));
 		}
 		// render text lines
 		textStack(4, false, graphics, List.of(
@@ -141,7 +172,8 @@ public class WorldMapScreen extends Screen {
 				if (data.scale == scale) {
 					state.decorations.forEach(decor -> {
 						Holder<MapDecorationType> type = ((MapDecorationRenderStateExtension) decor).mapstitch$getDecorationType();
-						if (type != MapDecorationTypes.PLAYER_OFF_LIMITS && type != MapDecorationTypes.PLAYER_OFF_MAP) decor.renderOnFrame = true;
+						if (type != MapDecorationTypes.PLAYER_OFF_LIMITS && type != MapDecorationTypes.PLAYER_OFF_MAP)
+							decor.renderOnFrame = true;
 					});
 					RENDER_LIST.put(mapGridPos.getPosOnScreen(screenX, screenY, posX, posZ), state);
 				}
@@ -158,9 +190,11 @@ public class WorldMapScreen extends Screen {
 		private static GridPos fromBlockPos(int blockX, int blockY) {
 			return new GridPos(blockX / (128 * (scale + 1)), blockY / (128 * (scale + 1)));
 		}
+
 		private static GridPos offset(GridPos center, GridPos other) {
 			return new GridPos(center.x - other.x, center.y - other.y);
 		}
+
 		private Vec2 getPosOnScreen(int screenX, int screenY, int playerX, int playerY) {
 			return new Vec2(
 					(screenX / 2F) + (x * 128) - ((float) 64 / (scale + 1)) - (((float) playerX / (scale + 1)) % 128),
