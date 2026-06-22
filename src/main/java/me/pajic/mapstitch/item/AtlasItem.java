@@ -4,7 +4,7 @@ import me.pajic.mapstitch.MapStitch;
 import me.pajic.mapstitch.component.ModDataComponents;
 import me.pajic.mapstitch.extension.BundleContentsExtension;
 import me.pajic.mapstitch.extension.BundleContentsMutableExtension;
-import me.pajic.mapstitch.mixin.BundleItemAccessor;
+import me.pajic.mapstitch.mixin.accessor.BundleItemAccessor;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.server.level.ServerLevel;
@@ -78,7 +78,7 @@ public class AtlasItem extends Item {
 				broadcastChangesOnContainerMenu(player);
 				return true;
 			} else if (clickAction == ClickAction.SECONDARY && other.isEmpty()) {
-				ItemStack itemStack = contents.removeOne();
+				ItemStack itemStack = ((BundleContentsMutableExtension) contents).mapstitch$removeOneOrdered();
 				if (itemStack != null) {
 					ItemStack remainder = slot.safeInsert(itemStack);
 					if (remainder.getCount() > 0 && isValidItemForAtlas(remainder, self, player.level())) {
@@ -123,7 +123,7 @@ public class AtlasItem extends Item {
 					return true;
 				} else if (clickAction == ClickAction.SECONDARY && other.isEmpty()) {
 					if (slot.allowModification(player)) {
-						ItemStack removed = contents.removeOne();
+						ItemStack removed = ((BundleContentsMutableExtension) contents).mapstitch$removeOneOrdered();
 						if (removed != null) {
 							BundleItemAccessor.mapstitch$callPlayRemoveOneSound(player);
 							carriedItem.set(removed);

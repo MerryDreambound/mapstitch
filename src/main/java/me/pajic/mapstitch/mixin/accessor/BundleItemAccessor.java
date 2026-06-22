@@ -1,4 +1,4 @@
-package me.pajic.mapstitch.mixin;
+package me.pajic.mapstitch.mixin.accessor;
 
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.player.Player;

@@ -10,8 +10,10 @@ import me.pajic.mapstitch.extension.BundleContentsExtension;
 import me.pajic.mapstitch.extension.BundleContentsMutableExtension;
 import me.pajic.mapstitch.item.AtlasItem;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.BundleContents;
 import org.apache.commons.lang3.math.Fraction;
+import org.jspecify.annotations.Nullable;
 import org.objectweb.asm.Opcodes;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -26,7 +28,6 @@ import java.util.List;
 
 @Mixin(BundleContents.class)
 public class BundleContentsMixin implements BundleContentsExtension {
-
 	@Unique private boolean mapstitch$isAtlas = false;
 
 	@Override
@@ -41,9 +42,9 @@ public class BundleContentsMixin implements BundleContentsExtension {
 
 	@Mixin(BundleContents.Mutable.class)
 	private static abstract class MutableMixin implements BundleContentsMutableExtension {
-
-		@Shadow public abstract int tryInsert(ItemStack itemsToAdd);
 		@Shadow @Final private List<ItemStack> items;
+		@Shadow public abstract int tryInsert(ItemStack itemsToAdd);
+		@Shadow public abstract @Nullable ItemStack removeOne();
 
 		@Unique private boolean mapstitch$isAtlas = false;
 
@@ -55,6 +56,23 @@ public class BundleContentsMixin implements BundleContentsExtension {
 				if (stack.isEmpty()) items.remove(index);
 				else items.set(index, stack);
 			}
+		}
+
+		@Override
+		public ItemStack mapstitch$removeOneOrdered() {
+			if (!items.isEmpty()) {
+				int emptyMapIndex = -1;
+				for (int i = 0; i < items.size(); i++) {
+					ItemStack stack = items.get(i);
+					if (stack.is(Items.MAP)){
+						emptyMapIndex = i;
+						break;
+					}
+				}
+				if (emptyMapIndex == -1) return removeOne();
+				else return items.remove(emptyMapIndex).copy();
+			}
+			return ItemStack.EMPTY;
 		}
 
 		@Inject(
