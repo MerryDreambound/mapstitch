@@ -126,7 +126,7 @@ public class WorldMapScreen extends Screen {
 				float x = (screenX / 2F) - (mapSize) * i + dragVerticalOffset + posXOffset - mapOffset;
 				graphics.verticalLine(Mth.floor(x), 0, screenY, WHITE);
 				if (compass) graphics.text(
-						MC.font, String.valueOf(-(i + 1 + Math.round(-posZ * z) / mapSize) * (128 * s) + (64 * s)), Mth.floor(x) + 5,2, WHITE
+						MC.font, String.valueOf(-(i + 1 + Math.round(-posX * z) / mapSize) * (128 * s) + (64 * s)), Mth.floor(x) + 5,2, WHITE
 				);
 			}
 		}

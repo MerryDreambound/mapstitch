@@ -4,11 +4,10 @@ import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
-import com.llamalad7.mixinextras.sugar.Share;
-import com.llamalad7.mixinextras.sugar.ref.LocalRef;
 import me.pajic.mapstitch.extension.BundleContentsExtension;
 import me.pajic.mapstitch.extension.BundleContentsMutableExtension;
 import me.pajic.mapstitch.item.AtlasItem;
+import me.pajic.mapstitch.mixin.accessor.BundleContentsAccessor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.BundleContents;
@@ -22,7 +21,6 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
 
@@ -43,9 +41,10 @@ public class BundleContentsMixin implements BundleContentsExtension {
 	@Mixin(BundleContents.Mutable.class)
 	private static abstract class MutableMixin implements BundleContentsMutableExtension {
 		@Shadow @Final private List<ItemStack> items;
-		@Shadow public abstract int tryInsert(ItemStack itemsToAdd);
 		@Shadow public abstract @Nullable ItemStack removeOne();
 
+		@Shadow
+		private Fraction weight;
 		@Unique private boolean mapstitch$isAtlas = false;
 
 		@Override
@@ -53,6 +52,7 @@ public class BundleContentsMixin implements BundleContentsExtension {
 			if (!items.isEmpty()) {
 				ItemStack stack = items.get(index).copy();
 				stack.shrink(1);
+				weight = weight.subtract(BundleContentsAccessor.getWeight(stack).getOrThrow().multiplyBy(Fraction.getFraction(stack.getCount(), 1)));
 				if (stack.isEmpty()) items.remove(index);
 				else items.set(index, stack);
 			}
@@ -70,7 +70,11 @@ public class BundleContentsMixin implements BundleContentsExtension {
 					}
 				}
 				if (emptyMapIndex == -1) return removeOne();
-				else return items.remove(emptyMapIndex).copy();
+				else {
+					ItemStack stack = items.remove(emptyMapIndex).copy();
+					weight = weight.subtract(BundleContentsAccessor.getWeight(stack).getOrThrow().multiplyBy(Fraction.getFraction(stack.getCount(), 1)));
+					return stack;
+				}
 			}
 			return ItemStack.EMPTY;
 		}
@@ -102,37 +106,6 @@ public class BundleContentsMixin implements BundleContentsExtension {
 		)
 		private Fraction increaseCapacity(Fraction original) {
 			return mapstitch$isAtlas ? AtlasItem.MAX_SIZE : original;
-		}
-
-		@ModifyExpressionValue(
-				method = "tryInsert",
-				at = @At(
-						value = "INVOKE",
-						target = "Lnet/minecraft/world/item/ItemStack;copyWithCount(I)Lnet/minecraft/world/item/ItemStack;"
-				)
-		)
-		private ItemStack limitStackSize(
-				ItemStack original,
-				@Share("remainder") LocalRef<ItemStack> remainderRef
-		) {
-			int maxStackSize = original.getMaxStackSize();
-			if (mapstitch$isAtlas && original.count() > maxStackSize) {
-				ItemStack remainder = original.split(maxStackSize);
-				remainderRef.set(remainder);
-			} else remainderRef.set(ItemStack.EMPTY);
-			return original;
-		}
-
-		@Inject(
-				method = "tryInsert",
-				at = @At("TAIL")
-		)
-		private void tryInsertRemainder(
-				CallbackInfoReturnable<Integer> cir,
-				@Share("remainder") LocalRef<ItemStack> remainderRef
-		) {
-			ItemStack remainder = remainderRef.get();
-			if (remainder != null && !remainder.isEmpty()) tryInsert(remainder);
 		}
 
 		@WrapOperation(

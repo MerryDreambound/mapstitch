@@ -305,7 +305,7 @@ public class AtlasItem extends Item {
 		BundleContents immutableContents = contents.toImmutable();
 		atlas.set(DataComponents.BUNDLE_CONTENTS, immutableContents);
 		int itemCount = getAtlasItemCount(immutableContents);
-		atlas.set(ModDataComponents.ATLAS_FULLNESS, itemCount == 0 ? 0 : itemCount / ((MAX_SIZE.intValue() * 64) / 4) + 1);
+		atlas.set(ModDataComponents.ATLAS_FULLNESS, Math.min(4, itemCount == 0 ? 0 : itemCount / ((MAX_SIZE.intValue() * 64) / 4) + 1));
 		atlas.set(ModDataComponents.ATLAS_ACTIVE_MAP_ID, -1);
 	}
 
