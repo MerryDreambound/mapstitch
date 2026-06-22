@@ -10,12 +10,15 @@
   "mapstitch.gui.worldmap.dimension_control": "§7Left/right arrow key:§r Switch dimension",
   "mapstitch.gui.worldmap.scale_control": "§7Up/down arrow key:§r Switch scale",
   "mapstitch.gui.worldmap.zoom_control": "§7Scroll wheel:§r Zoom in/out",
+  "mapstitch.gui.worldmap.grid_control": "Press §eG§r to show grid",
   "mapstitch.gui.worldmap.exit_control": "Press §eEsc§r or %s to exit",
   "mapstitch.gui.worldmap.help_control": "Press §eH§r to hide help",
+  "mapstitch.gui.minimap.no_map_1": "No map in atlas",
+  "mapstitch.gui.minimap.no_map_2": "for this area",
 
   "mapstitch.gui.worldmap.debug.rendered_maps": "[Debug] Rendered maps: %s",
 
-  "mapstitch.tooltip.atlas.capacity": "%s/1024 items",
+  "mapstitch.tooltip.atlas.capacity": "%s/%s items",
   "mapstitch.tooltip.atlas.filled_maps": "%s filled maps",
   "mapstitch.tooltip.atlas.empty_maps": "%s empty maps",
 
@@ -36,6 +39,8 @@
   "config.mapstitch.minimap.position.TOP_RIGHT": "Top right",
   "config.mapstitch.minimap.position.BOTTOM_LEFT": "Bottom left",
   "config.mapstitch.minimap.position.BOTTOM_RIGHT": "Bottom right",
+  "config.mapstitch.minimap.size": "Size",
+  "config.mapstitch.minimap.size.desc": "Controls the size of the minimap.",
   "config.mapstitch.minimap.background": "Background",
   "config.mapstitch.minimap.background.desc": "Controls the background style of the minimap.",
   "config.mapstitch.minimap.background.CLEAR": "Clear",

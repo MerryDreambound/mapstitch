@@ -83,7 +83,7 @@ public class BundleContentsMixin implements BundleContentsExtension {
 				)
 		)
 		private Fraction increaseCapacity(Fraction original) {
-			return mapstitch$isAtlas ? AtlasItem.SIZE : original;
+			return mapstitch$isAtlas ? AtlasItem.MAX_SIZE : original;
 		}
 
 		@ModifyExpressionValue(

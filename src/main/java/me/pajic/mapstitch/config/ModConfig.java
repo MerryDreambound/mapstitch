@@ -16,9 +16,10 @@ public class ModConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().excludeFieldsWithModifiers(Modifier.PRIVATE).create();
 	private File file;
 
-    public MinimapPosition minimapPosition = MinimapPosition.TOP_RIGHT;
-	public MinimapBackground minimapBackground = MinimapBackground.CLEAR;
 	public MinimapDisplayCondition minimapDisplayCondition = MinimapDisplayCondition.HOTBAR;
+    public MinimapPosition minimapPosition = MinimapPosition.TOP_RIGHT;
+	public int minimapSize = 2;
+	public MinimapBackground minimapBackground = MinimapBackground.CLEAR;
 	public int minimapBackgroundOpacity = 35;
 	public int minimapXOffset = 0;
 	public int minimapYOffset = 0;

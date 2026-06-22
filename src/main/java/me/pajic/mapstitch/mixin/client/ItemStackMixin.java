@@ -3,6 +3,7 @@ package me.pajic.mapstitch.mixin.client;
 import com.llamalad7.mixinextras.sugar.Local;
 import dev.kikugie.fletching_table.annotation.MixinEnvironment;
 import me.pajic.mapstitch.component.ModDataComponents;
+import me.pajic.mapstitch.item.AtlasItem;
 import me.pajic.mapstitch.item.ModItems;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
@@ -47,7 +48,7 @@ public class ItemStackMixin {
 				if (map.is(Items.FILLED_MAP)) filledMapCount += count;
 				if (map.is(Items.MAP)) emptyMapCount += count;
 			}
-			lines.add(Component.translatable("mapstitch.tooltip.atlas.capacity", itemCount).withStyle(ChatFormatting.GRAY));
+			lines.add(Component.translatable("mapstitch.tooltip.atlas.capacity", itemCount, AtlasItem.MAX_SIZE.intValue() * 64).withStyle(ChatFormatting.GRAY));
 			lines.add(Component.translatable("mapstitch.tooltip.atlas.filled_maps", filledMapCount).withStyle(ChatFormatting.GRAY));
 			lines.add(Component.translatable("mapstitch.tooltip.atlas.empty_maps", emptyMapCount).withStyle(ChatFormatting.GRAY));
 		}

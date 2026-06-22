@@ -43,9 +43,8 @@ import java.util.Optional;
 import java.util.concurrent.Semaphore;
 
 public class AtlasItem extends Item {
-
-	public static final Fraction SIZE = Fraction.getFraction(16, 1);
-	private static final Semaphore mutex = new Semaphore(1);
+	public static final Fraction MAX_SIZE = Fraction.getFraction(16, 1);
+	private static final Semaphore MUTEX = new Semaphore(1);
 
 	public AtlasItem() {
 		BundleContents contents = BundleContents.EMPTY;
@@ -156,13 +155,13 @@ public class AtlasItem extends Item {
 	@Override
 	public int getBarWidth(final ItemStack stack) {
 		BundleContents contents = stack.getOrDefault(DataComponents.BUNDLE_CONTENTS, BundleContents.EMPTY);
-		return Mth.clamp(getAtlasItemCount(contents) / 1024, 1, 13);
+		return Mth.clamp(getAtlasItemCount(contents) / (MAX_SIZE.intValue() * 64), 1, 13);
 	}
 
 	@Override
 	public int getBarColor(final ItemStack stack) {
 		BundleContents contents = stack.getOrDefault(DataComponents.BUNDLE_CONTENTS, BundleContents.EMPTY);
-		return getAtlasItemCount(contents) == 1024 ?
+		return getAtlasItemCount(contents) == MAX_SIZE.intValue() * 64 ?
 				BundleItemAccessor.mapstitch$getFullBarColor() : BundleItemAccessor.mapstitch$getBarColor();
 	}
 
@@ -278,9 +277,9 @@ public class AtlasItem extends Item {
 			} else if (emptyMapIndex == -1 && map.is(Items.MAP)) emptyMapIndex = i;
 		}
 		atlas.set(ModDataComponents.ATLAS_ACTIVE_MAP_ID, -1);
-		if (mutex.availablePermits() > 0 && emptyMapIndex != -1 && hasAnyFilledMaps) {
+		if (MUTEX.availablePermits() > 0 && emptyMapIndex != -1 && hasAnyFilledMaps) {
 			try {
-				mutex.acquire();
+				MUTEX.acquire();
 				ItemStack newMap = MapItem.create(level, posX, posZ, atlas.getOrDefault(ModDataComponents.ATLAS_SCALE, 0).byteValue(), true, false);
 				BundleContents.Mutable mutableContents = new BundleContents.Mutable(contents);
 				//noinspection DataFlowIssue
@@ -297,7 +296,7 @@ public class AtlasItem extends Item {
 			} catch (InterruptedException e) {
 				MapStitch.LOGGER.warn("Map creation interrupted", e);
 			} finally {
-				mutex.release();
+				MUTEX.release();
 			}
 		}
 	}
@@ -306,7 +305,8 @@ public class AtlasItem extends Item {
 		BundleContents immutableContents = contents.toImmutable();
 		atlas.set(DataComponents.BUNDLE_CONTENTS, immutableContents);
 		int itemCount = getAtlasItemCount(immutableContents);
-		atlas.set(ModDataComponents.ATLAS_FULLNESS, itemCount == 0 ? 0 : itemCount / 256 + 1);
+		atlas.set(ModDataComponents.ATLAS_FULLNESS, itemCount == 0 ? 0 : itemCount / ((MAX_SIZE.intValue() * 64) / 4) + 1);
+		atlas.set(ModDataComponents.ATLAS_ACTIVE_MAP_ID, -1);
 	}
 
 	private int getAtlasItemCount(BundleContents contents) {

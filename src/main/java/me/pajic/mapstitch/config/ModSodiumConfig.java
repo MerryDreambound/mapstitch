@@ -5,7 +5,10 @@ import me.pajic.mapstitch.minimap.MinimapBackground;
 import me.pajic.mapstitch.minimap.MinimapDisplayCondition;
 import me.pajic.mapstitch.minimap.MinimapPosition;
 import net.caffeinemc.mods.sodium.api.config.ConfigEntryPoint;
+import net.caffeinemc.mods.sodium.api.config.ConfigState;
+import net.caffeinemc.mods.sodium.api.config.option.Range;
 import net.caffeinemc.mods.sodium.api.config.structure.ConfigBuilder;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 //? neoforge {
@@ -13,13 +16,15 @@ import net.minecraft.resources.Identifier;
 
 @ConfigEntryPointForge(MapStitch.MOD_ID)
 *///?}
+@SuppressWarnings("unused")
 public class ModSodiumConfig implements ConfigEntryPoint {
+	private static final Minecraft MC = Minecraft.getInstance();
 
     @Override
     public void registerConfigLate(ConfigBuilder builder) {
         builder.registerOwnModOptions()
                 .setName("MapStitch")
-                .setColorTheme(builder.createColorTheme().setBaseThemeRGB(0x60d394))
+                .setColorTheme(builder.createColorTheme().setBaseThemeRGB(0xb388eb))
                 .setNonTintedIcon(Identifier.parse("mapstitch:textures/config_icon.png"))
                 .addPage(builder.createOptionPage()
                         .setName(Component.translatable("config.mapstitch.minimap"))
@@ -36,6 +41,14 @@ public class ModSodiumConfig implements ConfigEntryPoint {
 								.setDefaultValue(MinimapPosition.TOP_RIGHT)
 								.setElementNameProvider(MinimapPosition::getName)
 								.setBinding(e -> ModConfigHolder.options().minimapPosition = e, () -> ModConfigHolder.options().minimapPosition)
+								.setStorageHandler(() -> ModConfigHolder.options().writeChanges()))
+						.addOption(builder.createIntegerOption(MapStitch.id("minimap_size"))
+								.setName(Component.translatable("config.mapstitch.minimap.size"))
+								.setTooltip(Component.translatable("config.mapstitch.minimap.size.desc"))
+								.setDefaultValue(2)
+								.setValueFormatter(value -> Component.literal(0.5 + (value * 0.25) + "x"))
+								.setRange(0, 6, 1)
+								.setBinding(i -> ModConfigHolder.options().minimapSize = i, () -> ModConfigHolder.options().minimapSize)
 								.setStorageHandler(() -> ModConfigHolder.options().writeChanges()))
 						.addOption(builder.createEnumOption(MapStitch.id("minimap_background"), MinimapBackground.class)
 								.setName(Component.translatable("config.mapstitch.minimap.background"))
@@ -57,7 +70,7 @@ public class ModSodiumConfig implements ConfigEntryPoint {
 								.setTooltip(Component.translatable("config.mapstitch.minimap.x_offset.desc"))
 								.setDefaultValue(0)
 								.setValueFormatter(value -> Component.literal(String.valueOf(value)))
-								.setRange(Integer.MIN_VALUE, Integer.MAX_VALUE, 1)
+								.setRangeProvider(_ -> new Range(-MC.getWindow().getGuiScaledWidth(), MC.getWindow().getGuiScaledWidth(), 1), ConfigState.UPDATE_ON_REBUILD)
 								.setBinding(i -> ModConfigHolder.options().minimapXOffset = i, () -> ModConfigHolder.options().minimapXOffset)
 								.setStorageHandler(() -> ModConfigHolder.options().writeChanges()))
 						.addOption(builder.createIntegerOption(MapStitch.id("minimap_y_offset"))
@@ -65,10 +78,9 @@ public class ModSodiumConfig implements ConfigEntryPoint {
 								.setTooltip(Component.translatable("config.mapstitch.minimap.y_offset.desc"))
 								.setDefaultValue(0)
 								.setValueFormatter(value -> Component.literal(String.valueOf(value)))
-								.setRange(Integer.MIN_VALUE, Integer.MAX_VALUE, 1)
+								.setRangeProvider(_ -> new Range(-MC.getWindow().getGuiScaledHeight(), MC.getWindow().getGuiScaledHeight(), 1), ConfigState.UPDATE_ON_REBUILD)
 								.setBinding(i -> ModConfigHolder.options().minimapYOffset = i, () -> ModConfigHolder.options().minimapYOffset)
-								.setStorageHandler(() -> ModConfigHolder.options().writeChanges()))
-                )
+								.setStorageHandler(() -> ModConfigHolder.options().writeChanges())))
 				.addPage(builder.createOptionPage()
 						.setName(Component.translatable("config.mapstitch.worldmap"))
 						.addOption(builder.createIntegerOption(MapStitch.id("worldmap_text_background_opacity"))
@@ -84,7 +96,6 @@ public class ModSodiumConfig implements ConfigEntryPoint {
 								.setTooltip(Component.translatable("config.mapstitch.show_help.desc"))
 								.setDefaultValue(true)
 								.setBinding(bl -> ModConfigHolder.options().worldMapHelp = bl, () -> ModConfigHolder.options().worldMapHelp)
-								.setStorageHandler(() -> ModConfigHolder.options().writeChanges()))
-				);
+								.setStorageHandler(() -> ModConfigHolder.options().writeChanges())));
     }
 }

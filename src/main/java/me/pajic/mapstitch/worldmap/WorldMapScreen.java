@@ -1,6 +1,5 @@
 package me.pajic.mapstitch.worldmap;
 
-import com.mojang.authlib.minecraft.client.MinecraftClient;
 import com.mojang.blaze3d.platform.InputConstants;
 import it.unimi.dsi.fastutil.Pair;
 import it.unimi.dsi.fastutil.objects.ObjectBooleanImmutablePair;
@@ -34,17 +33,15 @@ import net.minecraft.world.phys.Vec2;
 import org.apache.commons.lang3.text.WordUtils;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Matrix3x2fStack;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static me.pajic.mapstitch.MapStitch.MOD_ID;
-
 public class WorldMapScreen extends Screen {
 	public static List<Identifier> dimensionIds = List.of();
 	public static final Map<Integer, MapRenderState> RENDER_STATES = new HashMap<>();
+	private static final int WHITE = 0xffffffff;
 	private static final Map<Vec2, MapRenderState> RENDER_LIST = new HashMap<>();
 
 	private static Identifier dimensionId = Identifier.withDefaultNamespace("overworld");
@@ -105,34 +102,32 @@ public class WorldMapScreen extends Screen {
 		// render grid
 		if (grid) {
 			float invertedZoom = 1 / z;
-			int mapSize = Math.round(128 / invertedZoom);
-			int mapOffset = Math.round((float) mapSize / 2);
-			int dragHorizontalOffset = Math.round((float) mouseDragY / invertedZoom);
-			int posZOffset = Math.round(-posZ * z);
-			int dragVerticalOffset = Math.round((float) mouseDragX / invertedZoom);
-			int posXOffset = Math.round(-posX * z);
-			int horizontalLineOffset = Math.round((float)dragHorizontalOffset/mapSize);
-			int verticalLineOffset = Math.round((float)dragVerticalOffset/mapSize);
-			int requiredHorizontalLinesStart = -Math.round((float) screenY /mapSize) + horizontalLineOffset;
-			int requiredHorizontalLinesEnd = Math.round((float) screenY /mapSize) + horizontalLineOffset;
-			int requiredVerticalLinesStart = -Math.round((float) screenX /mapSize) + verticalLineOffset;
-			int requiredVerticalLinesEnd = Math.round((float) screenX /mapSize) + verticalLineOffset;
+			int mapSize = Mth.floor(128 / invertedZoom);
+			int mapOffset = Mth.floor(mapSize / 2F);
+			int dragHorizontalOffset = Mth.floor(mouseDragY / invertedZoom);
+			int posZOffset = Mth.floor(-posZ * z) % mapSize;
+			int dragVerticalOffset = Mth.floor(mouseDragX / invertedZoom);
+			int posXOffset = Mth.floor(-posX * z) % mapSize;
+			int horizontalLineOffset = Mth.floor((float) dragHorizontalOffset / mapSize);
+			int verticalLineOffset = Mth.floor((float) dragVerticalOffset / mapSize);
+			int requiredHorizontalLinesStart = -Mth.floor((float) screenY / mapSize) + horizontalLineOffset;
+			int requiredHorizontalLinesEnd = Mth.floor((float) screenY / mapSize) + horizontalLineOffset;
+			int requiredVerticalLinesStart = -Mth.floor((float) screenX / mapSize) + verticalLineOffset;
+			int requiredVerticalLinesEnd = Mth.floor((float) screenX / mapSize) + verticalLineOffset;
 			for (int i = requiredHorizontalLinesStart; i <= requiredHorizontalLinesEnd; i++) {
-				graphics.horizontalLine(0, screenX, Math.round((screenY / 2F) - (mapSize) * i + dragHorizontalOffset + posZOffset - mapOffset), 0xffffffff);
-				graphics.text(MC.font, String.valueOf(-(i+1)*(128*s)+(64*s)), 0,Math.round((screenY / 2F) - (mapSize) * i + dragHorizontalOffset + posZOffset - mapOffset) + 5, 0xffffffff);
-
+				float y = (screenY / 2F) - (mapSize) * i + dragHorizontalOffset + posZOffset - mapOffset;
+				graphics.horizontalLine(0, screenX, Mth.floor(y), WHITE);
+				if (ModUtil.hasCompass(MC)) graphics.text(
+						MC.font, String.valueOf(-(i + 1 + Math.round(-posZ * z) / mapSize) * (128 * s) + (64 * s)), 2,Mth.floor(y) + 5, WHITE
+				);
 			}
 			for (int i = requiredVerticalLinesStart; i <= requiredVerticalLinesEnd; i++) {
-				graphics.verticalLine(Math.round((screenX / 2F) - (mapSize) * i + dragVerticalOffset + posXOffset - mapOffset), 0, screenY, 0xffffffff);
-				graphics.text(MC.font, String.valueOf(-(i+1)*(128*s)+(64*s)), Math.round((screenX / 2F) - (mapSize) * i + dragVerticalOffset + posXOffset - mapOffset)+5,0, 0xffffffff);
-
+				float x = (screenX / 2F) - (mapSize) * i + dragVerticalOffset + posXOffset - mapOffset;
+				graphics.verticalLine(Mth.floor(x), 0, screenY, WHITE);
+				if (ModUtil.hasCompass(MC)) graphics.text(
+						MC.font, String.valueOf(-(i + 1 + Math.round(-posZ * z) / mapSize) * (128 * s) + (64 * s)), Mth.floor(x) + 5,2, WHITE
+				);
 			}
-//			graphics.text(MC.font,"test", Math.round((screenY / 2F) - (mapSize) * i + dragHorizontalOffset + posZOffset - mapOffset) + 5,Math.round((screenX / 2F) - (mapSize) * i + dragVerticalOffset + posXOffset - mapOffset) + 5, 0xffffffff);
-
-			//			textStack(4, false, graphics, List.of(
-//					new ObjectBooleanImmutablePair<>(Component.literal(), true)
-//			));
-//			LoggerFactory.getLogger(MOD_ID).info("Mapsize: " + String.valueOf(mapSize) + " mapOffset: " + String.valueOf(mapOffset) + " dragHorizontalOffset: " + String.valueOf(dragHorizontalOffset) + " posZOffset: " + String.valueOf(posZOffset));
 		}
 		// render text lines
 		textStack(4, false, graphics, List.of(
@@ -146,6 +141,7 @@ public class WorldMapScreen extends Screen {
 				new ObjectBooleanImmutablePair<>(Component.translatable("mapstitch.gui.worldmap.help"), ModConfigHolder.options().worldMapHelp && !help),
 				new ObjectBooleanImmutablePair<>(Component.translatable("mapstitch.gui.worldmap.help_control"), help),
 				new ObjectBooleanImmutablePair<>(Component.translatable("mapstitch.gui.worldmap.exit_control", Component.keybind(ModKeybinds.OPEN_WORLD_MAP.getName()).withColor(0xffffff55)), help),
+				new ObjectBooleanImmutablePair<>(Component.translatable("mapstitch.gui.worldmap.grid_control"), help),
 				new ObjectBooleanImmutablePair<>(Component.translatable("mapstitch.gui.worldmap.scale_control"), help),
 				new ObjectBooleanImmutablePair<>(Component.translatable("mapstitch.gui.worldmap.dimension_control"), help),
 				new ObjectBooleanImmutablePair<>(Component.translatable("mapstitch.gui.worldmap.center_control"), help),
@@ -211,7 +207,7 @@ public class WorldMapScreen extends Screen {
 						ARGB.as8BitChannel(ModConfigHolder.options().worldMapTextBackgroundOpacity / 100F),
 						0, 0, 0
 				));
-				graphics.text(MC.font, line.left(), 4, y, 0xffffffff);
+				graphics.text(MC.font, line.left(), 4, y, WHITE);
 				y += flipped ? -12 : 12;
 			}
 		}
