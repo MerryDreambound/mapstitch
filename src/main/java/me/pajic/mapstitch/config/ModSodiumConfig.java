@@ -64,6 +64,7 @@ public class ModSodiumConfig implements ConfigEntryPoint {
 								.setRange(0, 100, 1)
 								.setValueFormatter(value -> Component.literal(value + "%"))
 								.setBinding(i -> ModConfigHolder.options().minimapBackgroundOpacity = i, () -> ModConfigHolder.options().minimapBackgroundOpacity)
+								.setEnabledProvider(state -> state.readEnumOption(MapStitch.id("minimap_background"), MinimapBackground.class) == MinimapBackground.CLEAR, MapStitch.id("minimap_background"))
 								.setStorageHandler(() -> ModConfigHolder.options().writeChanges()))
 						.addOption(builder.createIntegerOption(MapStitch.id("minimap_x_offset"))
 								.setName(Component.translatable("config.mapstitch.minimap.x_offset"))

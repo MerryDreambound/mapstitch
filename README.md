@@ -16,14 +16,30 @@ Having an atlas in the hotbar and a compass anywhere in your inventory will disp
 
 ## Configuration
 
+### Game rules
+
+- `mapstitch:require_compass_for_pos`: Whether a compass is required to display the minimap and the player position and coordinates in the world map (default true)
+
 ### Client settings
 
 These can be configured either through Sodium video settings or by editing `mapstitch.json` in the config folder.
 
-- Minimap position (`TOP_LEFT`, `TOP_RIGHT`, `BOTTOM_LEFT`, `BOTTOM_RIGHT`)
-- Minimap background (`CLEAR`, `TEXTURE`, `NONE`)
-  - Clear is a transparent rectangle, Texture is the map texture from the cartography table
 - Minimap display condition (`HANDS`, `HOTBAR`, `INVENTORY`)
   - Defines where the atlas item has to be located in order to display the minimap
-
-### Game rules
+  - Default is `HOTBAR`
+- Minimap position (`TOP_LEFT`, `TOP_RIGHT`, `BOTTOM_LEFT`, `BOTTOM_RIGHT`)
+  - Default is `TOP_RIGHT`
+- Minimap size (0.5x to 2.0x)
+  - Default is 1.0x
+- Minimap background (`CLEAR`, `TEXTURE`, `NONE`)
+  - Clear is a transparent rectangle, Texture is the map texture from the cartography table
+  - Default is `CLEAR`
+- Minimap background opacity (if Clear is set as the background)
+  - Default is 35%
+- Minimap horizontal and vertical offsets
+  - Defaults are 0 and 0
+- World map text background opacity (default 35%)
+  - Default is 35%
+- World map help toggle
+  - Defines whether to show the help toggle option
+  - Default is true
