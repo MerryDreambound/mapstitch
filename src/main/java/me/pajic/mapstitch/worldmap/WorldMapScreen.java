@@ -41,8 +41,8 @@ import java.util.Map;
 public class WorldMapScreen extends Screen {
 	public static List<Identifier> dimensionIds = List.of();
 	public static final Map<Integer, MapRenderState> RENDER_STATES = new HashMap<>();
-	private static final int WHITE = 0xffffffff;
 	private static final Map<Vec2, MapRenderState> RENDER_LIST = new HashMap<>();
+	private static final int WHITE = 0xffffffff;
 
 	private static Identifier dimensionId = Identifier.withDefaultNamespace("overworld");
 	private static int scale = 0;
@@ -70,7 +70,8 @@ public class WorldMapScreen extends Screen {
 		int screenY = MC.getWindow().getGuiScaledHeight();
 		float z = (float) Math.pow(2, zoom);
 		int s = Math.powExact(2, scale);
-		if (ModUtil.hasCompass(MC)) {
+		boolean compass = ModUtil.hasCompass(MC);
+		if (compass) {
 			posX = MC.player.blockPosition().getX();
 			posY = MC.player.blockPosition().getY();
 			posZ = MC.player.blockPosition().getZ();
@@ -80,10 +81,10 @@ public class WorldMapScreen extends Screen {
 			if (stack.is(ModItems.ATLAS)) {
 				BundleContents contents = stack.getOrDefault(DataComponents.BUNDLE_CONTENTS, BundleContents.EMPTY);
 				for (ItemStackTemplate map : contents.items()) {
-					if (map.is(Items.FILLED_MAP)) prepareMap(map, z, screenX, screenY);
+					if (map.is(Items.FILLED_MAP)) prepareMap(map, z, screenX, screenY, compass);
 				}
 			} else if (stack.is(Items.FILLED_MAP)) {
-				prepareMap(ItemStackTemplate.fromNonEmptyStack(stack), z, screenX, screenY);
+				prepareMap(ItemStackTemplate.fromNonEmptyStack(stack), z, screenX, screenY, compass);
 			}
 		});
 		// render prepared maps
@@ -117,21 +118,21 @@ public class WorldMapScreen extends Screen {
 			for (int i = requiredHorizontalLinesStart; i <= requiredHorizontalLinesEnd; i++) {
 				float y = (screenY / 2F) - (mapSize) * i + dragHorizontalOffset + posZOffset - mapOffset;
 				graphics.horizontalLine(0, screenX, Mth.floor(y), WHITE);
-				if (ModUtil.hasCompass(MC)) graphics.text(
+				if (compass) graphics.text(
 						MC.font, String.valueOf(-(i + 1 + Math.round(-posZ * z) / mapSize) * (128 * s) + (64 * s)), 2,Mth.floor(y) + 5, WHITE
 				);
 			}
 			for (int i = requiredVerticalLinesStart; i <= requiredVerticalLinesEnd; i++) {
 				float x = (screenX / 2F) - (mapSize) * i + dragVerticalOffset + posXOffset - mapOffset;
 				graphics.verticalLine(Mth.floor(x), 0, screenY, WHITE);
-				if (ModUtil.hasCompass(MC)) graphics.text(
+				if (compass) graphics.text(
 						MC.font, String.valueOf(-(i + 1 + Math.round(-posZ * z) / mapSize) * (128 * s) + (64 * s)), Mth.floor(x) + 5,2, WHITE
 				);
 			}
 		}
 		// render text lines
 		textStack(4, false, graphics, List.of(
-				new ObjectBooleanImmutablePair<>(Component.translatable("mapstitch.gui.worldmap.position", posX, posY, posZ), ModUtil.hasCompass(MC)),
+				new ObjectBooleanImmutablePair<>(Component.translatable("mapstitch.gui.worldmap.position", posX, posY, posZ), compass),
 				new ObjectBooleanImmutablePair<>(Component.translatable("mapstitch.gui.worldmap.dimension", getDimensionDisplayName()), true),
 				new ObjectBooleanImmutablePair<>(Component.translatable("mapstitch.gui.worldmap.scale", s), true),
 				new ObjectBooleanImmutablePair<>(Component.translatable("mapstitch.gui.worldmap.zoom", z), true),
@@ -151,7 +152,7 @@ public class WorldMapScreen extends Screen {
 	}
 
 	@SuppressWarnings("DataFlowIssue")
-	private void prepareMap(ItemStackTemplate map, float zoomLevel, int screenX, int screenY) {
+	private void prepareMap(ItemStackTemplate map, float zoomLevel, int screenX, int screenY, boolean compass) {
 		MapId mapId = map.get(DataComponents.MAP_ID);
 		MapItemSavedData data = MC.level.getMapData(mapId);
 		int i = mapId.id();
@@ -173,7 +174,7 @@ public class WorldMapScreen extends Screen {
 					});
 					RENDER_LIST.put(mapGridPos.getPosOnScreen(screenX, screenY, posX, posZ), state);
 				}
-				if (!ModUtil.hasCompass(MC)) state.decorations.forEach(decor -> {
+				if (!compass) state.decorations.forEach(decor -> {
 					Holder<MapDecorationType> type = ((MapDecorationRenderStateExtension) decor).mapstitch$getDecorationType();
 					if (type == MapDecorationTypes.PLAYER) decor.renderOnFrame = false;
 				});
