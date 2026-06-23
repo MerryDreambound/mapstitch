@@ -29,10 +29,10 @@ import net.minecraft.world.level.saveddata.maps.MapDecorationType;
 import net.minecraft.world.level.saveddata.maps.MapDecorationTypes;
 import net.minecraft.world.level.saveddata.maps.MapId;
 import net.minecraft.world.level.saveddata.maps.MapItemSavedData;
-import net.minecraft.world.phys.Vec2;
 import org.apache.commons.lang3.text.WordUtils;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Matrix3x2fStack;
+import org.joml.Vector2d;
 
 import java.util.HashMap;
 import java.util.List;
@@ -41,7 +41,7 @@ import java.util.Map;
 public class WorldMapScreen extends Screen {
 	public static List<Identifier> dimensionIds = List.of();
 	public static final Map<Integer, MapRenderState> RENDER_STATES = new HashMap<>();
-	private static final Map<Vec2, MapRenderState> RENDER_LIST = new HashMap<>();
+	private static final Map<Vector2d, MapRenderState> RENDER_LIST = new HashMap<>();
 	private static final int WHITE = 0xffffffff;
 
 	private static Identifier dimensionId = Identifier.withDefaultNamespace("overworld");
@@ -81,10 +81,10 @@ public class WorldMapScreen extends Screen {
 			if (stack.is(ModItems.ATLAS)) {
 				BundleContents contents = stack.getOrDefault(DataComponents.BUNDLE_CONTENTS, BundleContents.EMPTY);
 				for (ItemStackTemplate map : contents.items()) {
-					if (map.is(Items.FILLED_MAP)) prepareMap(map, z, screenX, screenY, compass);
+					if (map.is(Items.FILLED_MAP)) prepareMap(map, z, screenX, screenY, compass, s);
 				}
 			} else if (stack.is(Items.FILLED_MAP)) {
-				prepareMap(ItemStackTemplate.fromNonEmptyStack(stack), z, screenX, screenY, compass);
+				prepareMap(ItemStackTemplate.fromNonEmptyStack(stack), z, screenX, screenY, compass, s);
 			}
 		});
 		// render prepared maps
@@ -94,8 +94,8 @@ public class WorldMapScreen extends Screen {
 			pose.translate(screenX / 2F, screenY / 2F);
 			pose.scale(z);
 			pose.translate(
-					pos.x - screenX / 2F + (float) mouseDragX,
-					pos.y - screenY / 2F + (float) mouseDragY
+					(float) (pos.x - screenX / 2F + mouseDragX),
+					(float) (pos.y - screenY / 2F + mouseDragY)
 			);
 			graphics.map(state);
 			pose.popMatrix();
@@ -152,18 +152,18 @@ public class WorldMapScreen extends Screen {
 	}
 
 	@SuppressWarnings("DataFlowIssue")
-	private void prepareMap(ItemStackTemplate map, float zoomLevel, int screenX, int screenY, boolean compass) {
+	private void prepareMap(ItemStackTemplate map, float zoomLevel, int screenX, int screenY, boolean compass, int s) {
 		MapId mapId = map.get(DataComponents.MAP_ID);
 		MapItemSavedData data = MC.level.getMapData(mapId);
 		int i = mapId.id();
 		if (!data.isExplorationMap() && !data.locked && dimensionId.equals(data.dimension.identifier())) {
-			Vec2 mapCenter = map.get(ModDataComponents.MAP_ORIGIN);
+			Vector2d mapCenter = map.get(ModDataComponents.MAP_ORIGIN);
 			int mapCenterX = (int) mapCenter.x;
 			int mapCenterY = (int) mapCenter.y;
 			float distX = (float) (Math.abs(mapCenterX - posX + mouseDragX) * zoomLevel);
 			float distY = (float) (Math.abs(mapCenterY - posZ + mouseDragY) * zoomLevel);
 			if (distX >= 0 && distX < screenX && distY >= 0 && distY < screenY) {
-				GridPos mapGridPos = GridPos.offset(GridPos.fromBlockPos(mapCenterX, mapCenterY), GridPos.fromBlockPos(posX, posZ));
+				GridPos mapGridPos = GridPos.offset(GridPos.fromBlockPos(mapCenterX, mapCenterY, s), GridPos.fromBlockPos(posX, posZ, s));
 				MapRenderState state = RENDER_STATES.getOrDefault(i, new MapRenderState());
 				MC.getMapRenderer().extractRenderState(new MapId(i), data, state);
 				if (data.scale == scale) {
@@ -172,7 +172,7 @@ public class WorldMapScreen extends Screen {
 						if (type != MapDecorationTypes.PLAYER_OFF_LIMITS && type != MapDecorationTypes.PLAYER_OFF_MAP)
 							decor.renderOnFrame = true;
 					});
-					RENDER_LIST.put(mapGridPos.getPosOnScreen(screenX, screenY, posX, posZ), state);
+					RENDER_LIST.put(mapGridPos.getPosOnScreen(screenX, screenY, posX, posZ, s), state);
 				}
 				if (!compass) state.decorations.forEach(decor -> {
 					Holder<MapDecorationType> type = ((MapDecorationRenderStateExtension) decor).mapstitch$getDecorationType();
@@ -184,18 +184,18 @@ public class WorldMapScreen extends Screen {
 	}
 
 	private record GridPos(int x, int y) {
-		private static GridPos fromBlockPos(int blockX, int blockY) {
-			return new GridPos(blockX / (128 * (scale + 1)), blockY / (128 * (scale + 1)));
+		private static GridPos fromBlockPos(int blockX, int blockY, int s) {
+			return new GridPos(blockX / (128 * s), blockY / (128 * s));
 		}
 
 		private static GridPos offset(GridPos center, GridPos other) {
 			return new GridPos(center.x - other.x, center.y - other.y);
 		}
 
-		private Vec2 getPosOnScreen(int screenX, int screenY, int playerX, int playerY) {
-			return new Vec2(
-					(screenX / 2F) + (x * 128) - ((float) 64 / (scale + 1)) - (((float) playerX / (scale + 1)) % 128),
-					(screenY / 2F) + (y * 128) - ((float) 64 / (scale + 1)) - (((float) playerY / (scale + 1)) % 128)
+		private Vector2d getPosOnScreen(int screenX, int screenY, int playerX, int playerY, int s) {
+			return new Vector2d(
+					(screenX / 2F) + (x * 128) - (((float) playerX / s) % 128F),
+					(screenY / 2F) + (y * 128) - (((float) playerY / s) % 128F)
 			);
 		}
 	}

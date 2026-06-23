@@ -8,7 +8,7 @@ import org.slf4j.LoggerFactory;
 //? fabric {
 import me.pajic.mapstitch.platform.fabric.FabricPlatform;
 //?} neoforge {
-/*import me.pajic.modid.platform.neoforge.NeoforgePlatform;
+/*import me.pajic.mapstitch.platform.neoforge.NeoforgePlatform;
  *///?}
 
 @SuppressWarnings("LoggingSimilarMessage")
